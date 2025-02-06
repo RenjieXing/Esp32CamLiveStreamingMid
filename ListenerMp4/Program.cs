@@ -1,18 +1,19 @@
 ﻿using System.Diagnostics;
 using System.Text;
 using System.Text.RegularExpressions;
+using static System.Net.Mime.MediaTypeNames;
 using File = System.IO.File;
 
 public static class rocerd
 {
 
-    public const string FFmpegPath = "C:\\Users\\14798\\Desktop\\ffmepg\\ffmpeg-7.1-essentials_build\\bin\\ffmpeg";
+    public const string FFmpegPath = "C:\\Users\\BOSBSO\\OneDrive\\桌面\\ffmepg\\ffmpeg-7.1-essentials_build\\bin\\ffmpeg.exe";
 
-    public const string Mp4FileRoot = "C:\\Users\\14798\\Desktop\\mp4in";
+    public const string Mp4FileRoot = "C:\\Users\\BOSBSO\\OneDrive\\桌面\\MP4";
 
-    public const string M3U8FileRoot = "C:\\Users\\14798\\Desktop\\tsout";
+    public const string M3U8FileRoot = "C:\\Users\\BOSBSO\\OneDrive\\桌面\\M3U8";
+    public const int MaxSegments = 5; // 保留最新的
 
-  
 
 }
 
@@ -21,7 +22,6 @@ class Program
 {
     private static int mediaSequence = 0;
 
-    private static Dictionary<int,string> audioSequence = new();
 
     static async Task Main()
     {
@@ -88,102 +88,126 @@ class Program
         string error = await ffmpeg.StandardError.ReadToEndAsync();
         await ffmpeg.WaitForExitAsync();
 
-        Console.WriteLine(output);
-        Console.WriteLine(error);
+     
     }
 
-    static void UpdateM3U8File(string m3u8File, string tsFile)
+    static void UpdateM3U8File(string m3u8File, string newTsFile)
     {
-        StringBuilder m3u8Content = new StringBuilder();
+        const int maxSegments = 5; // 保留最新5个片段
+        var tsDuration = GetVideoDuration(rocerd.FFmpegPath, newTsFile);
+        var newSegmentName = Path.GetFileName(newTsFile);
 
-        // 读取现有的 m3u8 文件并解析内容
-        if (File.Exists(m3u8File))
-        {
-            string[] lines = File.ReadAllLines(m3u8File);
-            foreach (var line in lines)
+        // 读取或初始化播放列表
+        var m3u8Lines = File.Exists(m3u8File)
+            ? File.ReadAllLines(m3u8File).ToList()
+            : new List<string>
             {
-                if (line.StartsWith("#EXT-X-MEDIA-SEQUENCE"))
-                {
-                    // 更新媒体序列号
-                    mediaSequence = int.Parse(line.Split(':')[1]) + 1;
-              
-                    m3u8Content.AppendLine($"#EXT-X-MEDIA-SEQUENCE:{mediaSequence}");
-                }
-                else
-                {
-                    m3u8Content.AppendLine(line);
-                }
-            }
+            "#EXTM3U",
+            "#EXT-X-VERSION:6",
+            "#EXT-X-TARGETDURATION:10",
+            "#EXT-X-MEDIA-SEQUENCE:0",
+            "#EXT-X-DISCONTINUITY-SEQUENCE:0"
+            };
 
-       
+        // ===== 关键修改1：动态维护序列号 =====
+        int mediaSequence = int.Parse(GetTagValue(m3u8Lines, "EXT-X-MEDIA-SEQUENCE") ?? "0");
+        int discontinuitySequence = int.Parse(GetTagValue(m3u8Lines, "EXT-X-DISCONTINUITY-SEQUENCE") ?? "0");
+
+        // ===== 关键修改2：插入新片段（强制DISCONTINUITY）=====
+        m3u8Lines.Add($"#EXT-X-DISCONTINUITY");
+        m3u8Lines.Add($"#EXTINF:{tsDuration.TotalSeconds:F3},");
+        m3u8Lines.Add(newSegmentName);
+        discontinuitySequence++; // 每次新增递增全局序列
+
+        // ===== 关键修改3：滚动删除旧内容 =====
+        int segmentCount = m3u8Lines.Count(line => line.StartsWith("#EXTINF:"));
+        while (segmentCount > maxSegments)
+        {
+            // 删除最旧的一个片段（3行：DISCONTINUITY + EXTINF + TS）
+            int firstDiscontinuityIndex = m3u8Lines.FindIndex(line => line.Contains("EXT-X-DISCONTINUITY"));
+            if (firstDiscontinuityIndex != -1)
+            {
+                m3u8Lines.RemoveRange(firstDiscontinuityIndex, 3);
+                mediaSequence++; // 必须递增媒体序列号
+                segmentCount--;
+            }
+        }
+
+        // ===== 关键修改4：更新头部标签 =====
+        UpdateTag(m3u8Lines, "EXT-X-MEDIA-SEQUENCE", mediaSequence.ToString());
+        UpdateTag(m3u8Lines, "EXT-X-DISCONTINUITY-SEQUENCE", discontinuitySequence.ToString());
+
+        // 写入文件
+        File.WriteAllLines(m3u8File, m3u8Lines);
+
+        // ===== 关键修改5：清理旧TS文件 =====
+        var tsFiles = Directory.GetFiles(Path.GetDirectoryName(m3u8File), "*.ts")
+            .OrderBy(f => File.GetCreationTime(f))
+            .ToList();
+
+        while (tsFiles.Count > maxSegments)
+        {
+            File.Delete(tsFiles.First());
+            tsFiles.RemoveAt(0);
+        }
+    }
+
+    // 辅助方法：获取标签值
+    static string? GetTagValue(List<string> lines, string tagName)
+    {
+        return lines.FirstOrDefault(line => line.StartsWith($"#EXT-X-{tagName}:"))?
+            .Split(':').Last();
+    }
+
+    // 辅助方法：更新标签
+    static void UpdateTag(List<string> lines, string tagName, string value)
+    {
+        int index = lines.FindIndex(line => line.StartsWith($"#EXT-X-{tagName}:"));
+        if (index != -1)
+        {
+            lines[index] = $"#EXT-X-{tagName}:{value}";
         }
         else
         {
-            // 创建新的 m3u8 文件头部
-            m3u8Content.AppendLine("#EXTM3U");
-            m3u8Content.AppendLine("#EXT-X-VERSION:3");
-            m3u8Content.AppendLine("#EXT-X-ALLOW-CACHE:YES");
-            m3u8Content.AppendLine("#EXT-X-TARGETDURATION:10"); // 设置一个默认的目标时长
-            m3u8Content.AppendLine($"#EXT-X-MEDIA-SEQUENCE:{mediaSequence}");
+            lines.Insert(3, $"#EXT-X-{tagName}:{value}"); // 插入到版本标签之后
         }
-
-        // 获取 TS 文件的持续时间
-        TimeSpan tsDuration = GetMediaDuration(tsFile);
-
-        // 添加新的 TS 文件段
-        m3u8Content.AppendLine($"#EXTINF:{tsDuration.TotalSeconds:F3},");
-        m3u8Content.AppendLine(Path.GetFileName(tsFile));
-        if (!audioSequence.TryAdd(mediaSequence, Path.GetFileName(tsFile)))
-        {
-            Console.WriteLine("出现问题");
-        }
-
-        // 删除旧的 TS 文件段（如果需要）
-        if (mediaSequence > 5) // 例如，保留最新的5个片段
-        {
-            string oldTsFile = Path.Combine(rocerd.M3U8FileRoot, audioSequence.TryGetValue(mediaSequence-6,out var item)?item:"??");
-            if (File.Exists(oldTsFile))
-            {
-                File.Delete(oldTsFile);
-                Console.WriteLine($"删除旧的 TS 文件：{oldTsFile}");
-            }
-        }
-
-        // 保存更新后的 m3u8 文件
-        File.WriteAllText(m3u8File, m3u8Content.ToString());
     }
 
-    static TimeSpan GetMediaDuration(string tsFile)
+
+
+
+    public static TimeSpan GetVideoDuration(string ffmpegPath, string videoPath)
     {
-        var ffmpeg = new Process
-        {
-            StartInfo = new ProcessStartInfo
-            {
-                FileName = rocerd.FFmpegPath,
-                Arguments = $"-i \"{tsFile}\"",
-                RedirectStandardError = true,
-                UseShellExecute = false,
-                CreateNoWindow = true
-            }
-        };
-        ffmpeg.Start();
+        Process ffmpegProcess = new Process();
+        ffmpegProcess.StartInfo.FileName = ffmpegPath;
+        ffmpegProcess.StartInfo.Arguments = $"-i \"{videoPath}\"";
+        ffmpegProcess.StartInfo.RedirectStandardError = true;
+        ffmpegProcess.StartInfo.UseShellExecute = false;
+        ffmpegProcess.StartInfo.CreateNoWindow = true;
+        ffmpegProcess.Start();
 
-        string output = ffmpeg.StandardError.ReadToEnd();
-        ffmpeg.WaitForExit();
+        string ffmpegOutput = ffmpegProcess.StandardError.ReadToEnd();
+        ffmpegProcess.WaitForExit();
 
-        // 解析输出获取持续时间
-        var durationMatch = Regex.Match(output, @"Duration: (\d+):(\d+):(\d+)\.(\d+)");
-        if (durationMatch.Success)
+        string durationPattern = @"Duration: (\d{2}):(\d{2}):(\d{2})\.(\d{2})";
+        Match match = Regex.Match(ffmpegOutput, durationPattern);
+        if (match.Success)
         {
-            int hours = int.Parse(durationMatch.Groups[1].Value);
-            int minutes = int.Parse(durationMatch.Groups[2].Value);
-            int seconds = int.Parse(durationMatch.Groups[3].Value);
-            int milliseconds = int.Parse(durationMatch.Groups[4].Value);
-            return new TimeSpan(0, hours, minutes, seconds, milliseconds * 100);
+            int hours = int.Parse(match.Groups[1].Value);
+            int minutes = int.Parse(match.Groups[2].Value);
+            int seconds = int.Parse(match.Groups[3].Value);
+            int milliseconds = int.Parse(match.Groups[4].Value) * 10;
+
+            TimeSpan duration = new TimeSpan(0, hours, minutes, seconds, milliseconds);
+            return duration;
         }
-
-        return TimeSpan.Zero;
+        else
+        {
+            throw new Exception("Could not get video length.");
+        }
     }
+
+
 }
 
 
