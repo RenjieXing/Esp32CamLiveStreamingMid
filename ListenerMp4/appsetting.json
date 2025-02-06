@@ -1,0 +1,5 @@
+﻿{
+    "FFmpegPath": "C:\\Users\\14798\\Desktop\\ffmepg\\ffmpeg-7.1-essentials_build\\bin\\ffmpeg",
+    "Mp4FileRoot": "C:\\ffmpeg\\bin\\ffprobe.exe",
+    "FFmepgPath3": "C:\\ffmpeg\\bin\\ffplay.exe"
+}

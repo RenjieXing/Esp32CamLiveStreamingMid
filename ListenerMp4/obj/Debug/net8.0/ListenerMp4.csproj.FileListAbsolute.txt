@@ -1,0 +1,14 @@
+C:\Users\14798\Desktop\ListenerMp4\bin\Debug\net8.0\ListenerMp4.exe
+C:\Users\14798\Desktop\ListenerMp4\bin\Debug\net8.0\ListenerMp4.deps.json
+C:\Users\14798\Desktop\ListenerMp4\bin\Debug\net8.0\ListenerMp4.runtimeconfig.json
+C:\Users\14798\Desktop\ListenerMp4\bin\Debug\net8.0\ListenerMp4.dll
+C:\Users\14798\Desktop\ListenerMp4\bin\Debug\net8.0\ListenerMp4.pdb
+C:\Users\14798\Desktop\ListenerMp4\obj\Debug\net8.0\ListenerMp4.GeneratedMSBuildEditorConfig.editorconfig
+C:\Users\14798\Desktop\ListenerMp4\obj\Debug\net8.0\ListenerMp4.AssemblyInfoInputs.cache
+C:\Users\14798\Desktop\ListenerMp4\obj\Debug\net8.0\ListenerMp4.AssemblyInfo.cs
+C:\Users\14798\Desktop\ListenerMp4\obj\Debug\net8.0\ListenerMp4.csproj.CoreCompileInputs.cache
+C:\Users\14798\Desktop\ListenerMp4\obj\Debug\net8.0\ListenerMp4.dll
+C:\Users\14798\Desktop\ListenerMp4\obj\Debug\net8.0\refint\ListenerMp4.dll
+C:\Users\14798\Desktop\ListenerMp4\obj\Debug\net8.0\ListenerMp4.pdb
+C:\Users\14798\Desktop\ListenerMp4\obj\Debug\net8.0\ListenerMp4.genruntimeconfig.cache
+C:\Users\14798\Desktop\ListenerMp4\obj\Debug\net8.0\ref\ListenerMp4.dll
