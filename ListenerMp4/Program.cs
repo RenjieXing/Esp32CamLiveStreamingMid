@@ -12,9 +12,7 @@ public static class rocerd
 
     public const string M3U8FileRoot = "C:\\Users\\14798\\Desktop\\tsout";
 
-    public const int tsLenth = 2;
-
-    public const int tsCount = 3;
+  
 
 }
 

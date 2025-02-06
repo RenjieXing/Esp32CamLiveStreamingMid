@@ -1,5 +1,0 @@
-C:\Users\14798\Desktop\ListenerMp4\Release\ListenerMp4.exe
-C:\Users\14798\Desktop\ListenerMp4\Release\ListenerMp4.dll
-C:\Users\14798\Desktop\ListenerMp4\Release\ListenerMp4.deps.json
-C:\Users\14798\Desktop\ListenerMp4\Release\ListenerMp4.runtimeconfig.json
-C:\Users\14798\Desktop\ListenerMp4\Release\ListenerMp4.pdb
