@@ -148,6 +148,10 @@ class Program
             int firstDiscontinuityIndex = m3u8Lines.FindIndex(line => line.Contains("EXT-X-DISCONTINUITY"));
             if (firstDiscontinuityIndex != -1)
             {
+                var tsName = m3u8Lines[firstDiscontinuityIndex + 2];
+                //移除列表时延时删除该文件
+                //依据HLS规范，延迟删除的时间应该大于最大片段时间+本段时间,这里简化处理以配置为准
+                new DelayDelete().Delete(Path.Combine(rocerd.M3U8FileRoot, tsName));
                 m3u8Lines.RemoveRange(firstDiscontinuityIndex, 3);
                 mediaSequence++; // 必须递增媒体序列号
                 segmentCount--;
@@ -161,16 +165,9 @@ class Program
         // 写入文件
         File.WriteAllLines(m3u8File, m3u8Lines);
 
-        // 清理旧TS文件
-        var tsFiles = Directory.GetFiles(Path.GetDirectoryName(m3u8File), "*.ts")
-            .OrderBy(f => File.GetCreationTime(f))
-            .ToList();
-        //依据HLS规范，延迟删除的时间应该大于最大片段时间+本段时间,这里简化处理以配置为准
-        while (tsFiles.Count > rocerd.MaxSegments)
-        {
-            new DelayDelete().Delete(tsFiles.First());
-            tsFiles.RemoveAt(0);
-        }
+      
+        
+     
     }
 
     // 辅助方法：获取标签值

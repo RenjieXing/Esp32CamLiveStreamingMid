@@ -6,7 +6,10 @@ document.addEventListener("DOMContentLoaded", async function () {
         // 从上级文件夹读取 appsettings.json 文件
         const response = await fetch("../appsetting.json");
         const config = await response.json();
-        videoSrc = config.M3U8FileRoot+"\\index.m3u8"; // 假设 JSON 文件中有一个 HlsPlayAddress 字段
+        // 构建跨平台兼容的 videoSrc 路径
+        let videoSrc = config.M3U8FileRoot + "/index.m3u8";
+        // 确保路径分隔符在不同操作系统上都能兼容
+        videoSrc = videoSrc.replace(/\\/g, '/');
     } catch (error) {
         console.error("读取或解析 appsettings.json 文件时出错:", error);
         return;
