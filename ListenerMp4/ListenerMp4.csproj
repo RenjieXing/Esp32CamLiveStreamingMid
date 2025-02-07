@@ -8,8 +8,18 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <None Remove="appsetting.json" />
+  </ItemGroup>
+
+  <ItemGroup>
     <Folder Include="testWeb\" />
     <Folder Include="Release\" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <EmbeddedResource Include="appsetting.json">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </EmbeddedResource>
   </ItemGroup>
 
 </Project>

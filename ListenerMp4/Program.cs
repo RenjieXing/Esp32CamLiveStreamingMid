@@ -1,4 +1,5 @@
 ﻿using System.Diagnostics;
+using System.Dynamic;
 using System.Text;
 using System.Text.RegularExpressions;
 using static System.Net.Mime.MediaTypeNames;
@@ -6,25 +7,48 @@ using File = System.IO.File;
 
 public static class rocerd
 {
+    public static bool init()
+    {
 
-    public const string FFmpegPath = "C:\\Users\\BOSBSO\\OneDrive\\桌面\\ffmepg\\ffmpeg-7.1-essentials_build\\bin\\ffmpeg.exe";
+        var exeDirectory = AppDomain.CurrentDomain.BaseDirectory; // 获取可执行文件目录
+        var appSettingsPath = Path.Combine(exeDirectory, "appsetting.json");
+        if (File.Exists(appSettingsPath))
+        {
+            var JsonFile = File.ReadAllText(appSettingsPath);
+            var JsonObj = System.Text.Json.JsonSerializer.Deserialize<ExpandoObject>(JsonFile);
+            var dictionary = JsonObj as IDictionary<string, object>;
+            FFmpegPath = dictionary?["FFmpegPath"]?.ToString() ?? "";
+            Mp4FileRoot = dictionary?["Mp4FileRoot"]?.ToString() ?? "";
+            M3U8FileRoot = dictionary?["M3U8FileRoot"]?.ToString() ?? "";
+            MaxSegments = int.Parse(dictionary?["MaxSegments"]?.ToString() ?? "5");
+            OUTDATEtIME = int.Parse(dictionary?["OUTDATEtIME"]?.ToString() ?? "20");
+            return true;
+        }
+        return false;
+    }
 
-    public const string Mp4FileRoot = "C:\\Users\\BOSBSO\\OneDrive\\桌面\\MP4";
+    public static string FFmpegPath = "";
 
-    public const string M3U8FileRoot = "C:\\Users\\BOSBSO\\OneDrive\\桌面\\M3U8";
-    public const int MaxSegments = 5; // 保留最新的
+    public static string Mp4FileRoot = "";
 
+    public static string M3U8FileRoot = "";
 
+    public static int MaxSegments = 5;
+
+    public static int OUTDATEtIME = 20;
 }
 
 
 class Program
 {
-    private static int mediaSequence = 0;
-
-
     static async Task Main()
     {
+        if (!rocerd.init())
+        {
+            Console.WriteLine("配置文件不存在");
+            Console.ReadLine();
+            return;
+        }
         // 获取当前目录
         string currentDirectory = rocerd.Mp4FileRoot;
         // 创建 FileSystemWatcher 监听 MP4 文件变化
@@ -88,12 +112,11 @@ class Program
         string error = await ffmpeg.StandardError.ReadToEndAsync();
         await ffmpeg.WaitForExitAsync();
 
-     
+
     }
 
     static void UpdateM3U8File(string m3u8File, string newTsFile)
     {
-        const int maxSegments = 5; // 保留最新5个片段
         var tsDuration = GetVideoDuration(rocerd.FFmpegPath, newTsFile);
         var newSegmentName = Path.GetFileName(newTsFile);
 
@@ -121,7 +144,7 @@ class Program
 
         // ===== 关键修改3：滚动删除旧内容 =====
         int segmentCount = m3u8Lines.Count(line => line.StartsWith("#EXTINF:"));
-        while (segmentCount > maxSegments)
+        while (segmentCount > rocerd.MaxSegments)
         {
             // 删除最旧的一个片段（3行：DISCONTINUITY + EXTINF + TS）
             int firstDiscontinuityIndex = m3u8Lines.FindIndex(line => line.Contains("EXT-X-DISCONTINUITY"));
@@ -145,9 +168,10 @@ class Program
             .OrderBy(f => File.GetCreationTime(f))
             .ToList();
 
-        while (tsFiles.Count > maxSegments)
+        while (tsFiles.Count > rocerd.MaxSegments)
         {
-            File.Delete(tsFiles.First());
+            // File.Delete(tsFiles.First());
+            new DelayDelete().Delete(tsFiles.First());
             tsFiles.RemoveAt(0);
         }
     }
@@ -207,6 +231,24 @@ class Program
         }
     }
 
+
+    public class DelayDelete
+    {
+        public void Delete(string FileFullPath)
+        {
+
+            Task.Run(async () =>
+            {
+
+                await Task.Delay(rocerd.OUTDATEtIME * 1000);
+
+                if (File.Exists(FileFullPath))
+                {
+                    File.Delete(FileFullPath);
+                }
+            });
+        }
+    }
 
 }
 

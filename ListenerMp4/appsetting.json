@@ -1,5 +1,7 @@
 ﻿{
     "FFmpegPath": "C:\\Users\\14798\\Desktop\\ffmepg\\ffmpeg-7.1-essentials_build\\bin\\ffmpeg",
-    "Mp4FileRoot": "C:\\ffmpeg\\bin\\ffprobe.exe",
-    "FFmepgPath3": "C:\\ffmpeg\\bin\\ffplay.exe"
+    "Mp4FileRoot": "C:\\Users\\14798\\Desktop\\mp4in",
+    "M3U8FileRoot": "C:\\Users\\14798\\Desktop\\tsout",
+    "MaxSegments": 2,
+    "OUTDATEtIME": 20
 }

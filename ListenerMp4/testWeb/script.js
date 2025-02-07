@@ -1,7 +1,16 @@
-
-document.addEventListener("DOMContentLoaded", function () {
+document.addEventListener("DOMContentLoaded", async function () {
     const video = document.getElementById("video");
-    const videoSrc = "C:\\Users\\BOSBSO\\OneDrive\\桌面\\M3U8\\index.m3u8"; // 使用 HTTP 地址
+    let videoSrc = "";
+
+    try {
+        // 从上级文件夹读取 appsettings.json 文件
+        const response = await fetch("../appsetting.json");
+        const config = await response.json();
+        videoSrc = config.M3U8FileRoot+"\\index.m3u8"; // 假设 JSON 文件中有一个 HlsPlayAddress 字段
+    } catch (error) {
+        console.error("读取或解析 appsettings.json 文件时出错:", error);
+        return;
+    }
 
     if (Hls.isSupported()) {
         const hls = new Hls({
@@ -23,22 +32,32 @@ document.addEventListener("DOMContentLoaded", function () {
             });
         });
 
+        // 处理 HLS 播放器错误
         hls.on(Hls.Events.ERROR, function (event, data) {
             if (data.type === Hls.ErrorTypes.NETWORK_ERROR && data.details === Hls.ErrorDetails.MANIFEST_LOAD_ERROR) {
-                console.warn("播放列表重载失败，尝试重新连接...");
-                setTimeout(() => hls.loadSource(videoSrc), 3000);
+                console.warn("播放列表重载失败,尝试重新连接...");
+                setTimeout(() => {
+                    hls.loadSource(videoSrc);
+                    hls.attachMedia(video);
+                    video.play();
+                }, 3000); // 重试间隔
             }
 
             if (data.type === Hls.ErrorTypes.MEDIA_ERROR && data.details === Hls.ErrorDetails.FRAG_LOAD_ERROR) {
-                console.warn("TS 片段加载失败，可能已被删除，跳过...");
+                console.warn("TS 片段加载失败,可能已被删除,尝试恢复...");
                 hls.recoverMediaError();
             }
+
+            if (data.type === Hls.ErrorTypes.NETWORK_ERROR && data.details === Hls.ErrorDetails.FRAG_LOAD_TIMEOUT) {
+                console.warn("TS 片段加载超时,尝试重新连接...");
+                hls.startLoad();
+            }
         });
+
+        // 监听 LEVEL_UPDATED 事件
         hls.on(Hls.Events.LEVEL_UPDATED, function (event, data) {
             const details = data.details;
-            console.log(`当前直播窗口: 
-       序列号 ${details.live.mediaSequence} - 
-       最新片段: ${details.fragments[details.fragments.length - 1].url}`);
+            console.log(`当前直播窗口: 序列号 ${details.live.mediaSequence} - 最新片段: ${details.fragments[details.fragments.length - 1].url}`);
         });
 
     } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
