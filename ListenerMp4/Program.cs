@@ -22,6 +22,7 @@ public static class rocerd
             M3U8FileRoot = dictionary?["M3U8FileRoot"]?.ToString() ?? "";
             MaxSegments = int.Parse(dictionary?["MaxSegments"]?.ToString() ?? "5");
             OUTDATEtIME = int.Parse(dictionary?["OUTDATEtIME"]?.ToString() ?? "20");
+            MediaType = dictionary?["ListenMediaType"]?.ToString() ?? "mp4";
             return true;
         }
         return false;
@@ -36,6 +37,8 @@ public static class rocerd
     public static int MaxSegments = 5;
 
     public static int OUTDATEtIME = 20;
+
+    public static string MediaType = "mp4";
 }
 
 
@@ -55,7 +58,7 @@ class Program
         FileSystemWatcher watcher = new FileSystemWatcher
         {
             Path = currentDirectory,
-            Filter = "*.mp4",
+            Filter = $"*.{rocerd.MediaType}",
             NotifyFilter = NotifyFilters.FileName | NotifyFilters.LastWrite
         };
 
