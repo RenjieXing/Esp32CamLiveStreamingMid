@@ -74,7 +74,7 @@ class Program
 
         // 指定输出文件夹
         string outputDirectory = rocerd.M3U8FileRoot;
-        Directory.CreateDirectory(outputDirectory); // 如果文件夹不存在则创建
+        Directory.CreateDirectory(outputDirectory); 
 
         string tsFile = Path.Combine(outputDirectory, fileName + ".ts");
         string m3u8File = Path.Combine(outputDirectory, "index.m3u8");
@@ -107,7 +107,6 @@ class Program
         };
 
         ffmpeg.Start();
-
         string output = await ffmpeg.StandardOutput.ReadToEndAsync();
         string error = await ffmpeg.StandardError.ReadToEndAsync();
         await ffmpeg.WaitForExitAsync();
@@ -119,30 +118,29 @@ class Program
     {
         var tsDuration = GetVideoDuration(rocerd.FFmpegPath, newTsFile);
         var newSegmentName = Path.GetFileName(newTsFile);
-
         // 读取或初始化播放列表
         var m3u8Lines = File.Exists(m3u8File)
             ? File.ReadAllLines(m3u8File).ToList()
             : new List<string>
             {
-            "#EXTM3U",
-            "#EXT-X-VERSION:6",
-            "#EXT-X-TARGETDURATION:10",
-            "#EXT-X-MEDIA-SEQUENCE:0",
-            "#EXT-X-DISCONTINUITY-SEQUENCE:0"
+                "#EXTM3U",
+                "#EXT-X-VERSION:6",
+                "#EXT-X-TARGETDURATION:10",
+                "#EXT-X-MEDIA-SEQUENCE:0",
+                "#EXT-X-DISCONTINUITY-SEQUENCE:0"
             };
 
-        // ===== 关键修改1：动态维护序列号 =====
+        // 动态维护序列号
         int mediaSequence = int.Parse(GetTagValue(m3u8Lines, "EXT-X-MEDIA-SEQUENCE") ?? "0");
         int discontinuitySequence = int.Parse(GetTagValue(m3u8Lines, "EXT-X-DISCONTINUITY-SEQUENCE") ?? "0");
 
-        // ===== 关键修改2：插入新片段（强制DISCONTINUITY）=====
+        //插入新片段（强制DISCONTINUITY）
         m3u8Lines.Add($"#EXT-X-DISCONTINUITY");
         m3u8Lines.Add($"#EXTINF:{tsDuration.TotalSeconds:F3},");
         m3u8Lines.Add(newSegmentName);
         discontinuitySequence++; // 每次新增递增全局序列
 
-        // ===== 关键修改3：滚动删除旧内容 =====
+        // 滚动延迟删除旧内容
         int segmentCount = m3u8Lines.Count(line => line.StartsWith("#EXTINF:"));
         while (segmentCount > rocerd.MaxSegments)
         {
@@ -156,21 +154,20 @@ class Program
             }
         }
 
-        // ===== 关键修改4：更新头部标签 =====
+        // 更新头部标签
         UpdateTag(m3u8Lines, "EXT-X-MEDIA-SEQUENCE", mediaSequence.ToString());
         UpdateTag(m3u8Lines, "EXT-X-DISCONTINUITY-SEQUENCE", discontinuitySequence.ToString());
 
         // 写入文件
         File.WriteAllLines(m3u8File, m3u8Lines);
 
-        // ===== 关键修改5：清理旧TS文件 =====
+        // 清理旧TS文件
         var tsFiles = Directory.GetFiles(Path.GetDirectoryName(m3u8File), "*.ts")
             .OrderBy(f => File.GetCreationTime(f))
             .ToList();
-
+        //依据HLS规范，延迟删除的时间应该大于最大片段时间+本段时间,这里简化处理以配置为准
         while (tsFiles.Count > rocerd.MaxSegments)
         {
-            // File.Delete(tsFiles.First());
             new DelayDelete().Delete(tsFiles.First());
             tsFiles.RemoveAt(0);
         }
@@ -196,10 +193,6 @@ class Program
             lines.Insert(3, $"#EXT-X-{tagName}:{value}"); // 插入到版本标签之后
         }
     }
-
-
-
-
     public static TimeSpan GetVideoDuration(string ffmpegPath, string videoPath)
     {
         Process ffmpegProcess = new Process();
@@ -231,7 +224,7 @@ class Program
         }
     }
 
-
+    //异步延时删除
     public class DelayDelete
     {
         public void Delete(string FileFullPath)
