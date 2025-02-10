@@ -1,12 +1,8 @@
 ﻿using OpenCvSharp;
-using OpenCvSharp.Flann;
-using System;
-using System.Collections;
 using System.Collections.Concurrent;
 using System.Dynamic;
 using System.Net;
 using System.Net.Sockets;
-using static System.Runtime.InteropServices.JavaScript.JSType;
 
 namespace VideoReceiver
 {
@@ -42,11 +38,9 @@ namespace VideoReceiver
 
     class Program
     {
-        static int frameCount = 0;
         static ManualResetEvent allDone = new ManualResetEvent(false);
-        static ConcurrentQueue<List<Byte>> imageQueue = new ();
-        static List<Byte> docker=new();
-        static int fileLenth = int.MinValue;
+        static ConcurrentQueue<List<Byte>> imageQueue = new();
+    
         static void Main(string[] args)
         {
             if (!Recorder.Init())
@@ -89,7 +83,7 @@ namespace VideoReceiver
                     {
                         if (imageQueue.TryDequeue(out var buffer))
                         {
-                            bytes.Add(buffer.ToArray());
+                            bytes.Add([.. buffer]);
                             FileStream fileStream = new FileStream($"{i}.jpeg", FileMode.Append, FileAccess.Write);
                             fileStream.Write(buffer.ToArray(), 0, buffer.Count-1);
                             fileStream.Close();
@@ -110,6 +104,7 @@ namespace VideoReceiver
                 }
                 // 释放视频写入器
                 videoWriter.Release();
+                videoWriter?.Dispose();
             }
 
             
@@ -164,25 +159,25 @@ namespace VideoReceiver
                 int bytesRead = handler.EndReceive(ar);
                 if (bytesRead > 0)
                 {
-                    if (fileLenth <= 0)
-                    {
-                        if (docker.Count > 0)
-                        {
-                            imageQueue.Enqueue(docker);
-                            docker.Clear();
-                        }
-                        fileLenth = BitConverter.ToInt32(state.buffer, 0);
-                    }
-                    else
-                    {
-                        var result = new ArraySegment<Byte>(state.buffer, 0, fileLenth> state.buffer.Length? state.buffer.Length: state.buffer.Length- fileLenth).ToArray();
-                        docker.AddRange(result);
-                        fileLenth -= result.Length;
-                    }
-                   
+                    state.AccumulatedBytes.AddRange(state.buffer.Take(bytesRead));
 
+                    while (true)
+                    {
+                        if (state.AccumulatedBytes.Count < 4) break;
+
+                        int dataLength = BitConverter.ToInt32(state.AccumulatedBytes.Take(4).ToArray(), 0);
+                       
+                        if (state.AccumulatedBytes.Count < 4 + dataLength) break;
+
+                        var packet = state.AccumulatedBytes.Skip(4).Take(dataLength).ToList();
+                        
+                        imageQueue.Enqueue(packet);
+
+                        state.AccumulatedBytes.RemoveRange(0, 4 + dataLength);
+                    }
                     handler.BeginReceive(state.buffer, 0, StateObject.BufferSize, 0, new AsyncCallback(ReadCallback), state);
                 }
+             
               
             }
             catch (Exception e)
@@ -195,8 +190,9 @@ namespace VideoReceiver
         public class StateObject
         {
             public Socket workSocket = null;
-            public const int BufferSize = 1024*10;
+            public const int BufferSize = 1024 * 10;
             public byte[] buffer = new byte[BufferSize];
+            public List<byte> AccumulatedBytes = new List<byte>();
         }
 
 
