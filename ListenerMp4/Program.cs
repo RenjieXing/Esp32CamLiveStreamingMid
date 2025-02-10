@@ -34,7 +34,7 @@ public static class rocerd
 
     public static string M3U8FileRoot = "";
 
-    public static int MaxSegments = 5;
+    public static int MaxSegments = 20;
 
     public static int OUTDATEtIME = 20;
 

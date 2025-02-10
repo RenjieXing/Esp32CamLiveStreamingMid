@@ -4,5 +4,6 @@
   "M3U8FileRoot": "C:\\Users\\BOSBSO\\OneDrive\\桌面\\M3U8",
   "MaxSegments": 2,
   "OUTDATEtIME": 20,
-  "ListenMediaType": "mp4"
+  "ListenMediaType": "mp4",
+  "Ip": "192.168.0.108"
 }
