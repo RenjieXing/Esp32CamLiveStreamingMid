@@ -34,13 +34,15 @@ namespace VideoReceiver
         public static int MaxSegments = 5;
         public static int OutdateTime = 20;
         public static string MediaType = "mp4";
+
+        
     }
 
     class Program
     {
         static ManualResetEvent allDone = new ManualResetEvent(false);
         static ConcurrentQueue<List<Byte>> imageQueue = new();
-    
+
         static void Main(string[] args)
         {
             if (!Recorder.Init())
@@ -62,13 +64,14 @@ namespace VideoReceiver
             int duration = 5;
             // 输出视频文件路径
             string outputVideo = Recorder.Mp4FileRoot;
-            int height = 800;
-            int width = 600;
-            int Fps = 10;
+            int height = 600;
+            int width = 800;
+            int Fps = 150;
 
             while (true)
             {
                 await Task.Delay(duration * 1000);
+                var fileName = $"{DateTime.Now.ToString("yyyyMMddHHmmssfff")}.mp4";
                 var frameCount = imageQueue.Count;
                 if (frameCount == 0)
                 {
@@ -76,41 +79,64 @@ namespace VideoReceiver
                 }
                 List<Byte[]> bytes = new();
                 // 创建视频写入器
-                VideoWriter videoWriter = new VideoWriter(Path.Combine(outputVideo,$"{frameCount}.mp4"), VideoWriter.FourCC('m', 'p', '4', 'v'), Fps, new OpenCvSharp.Size(width, height));
-                if(frameCount !=Fps)
+                VideoWriter videoWriter = new VideoWriter(fileName, FourCC.MPG4, Fps / duration, new OpenCvSharp.Size(width, height));
+                if (frameCount != Fps)
                 {
                     for (var i = 0; i < frameCount; i++)
                     {
                         if (imageQueue.TryDequeue(out var buffer))
                         {
                             bytes.Add([.. buffer]);
-                            FileStream fileStream = new FileStream($"{i}.jpeg", FileMode.Append, FileAccess.Write);
-                            fileStream.Write(buffer.ToArray(), 0, buffer.Count-1);
-                            fileStream.Close();
+                            //FileStream fileStream = new FileStream($"{DateTime.Now.ToString("yyyyMMddHHmmssfff")}.jpeg", FileMode.Append, FileAccess.Write);
+                            //fileStream.Write(buffer.ToArray(), 0, buffer.Count-1);
+                            //fileStream.Close();
                         }
                     }
                 }
-                var RATE = ((double)frameCount) / ((double)Fps);
-                for (var i = 0; i < Fps* duration; i++)
+                int frameCount2 = bytes.Count;
+                int repeatCount = Fps / bytes.Count;
+                var lessframe = bytes.Count / ((bytes.Count - Fps) == 0 ? bytes.Count : bytes.Count - Fps);
+                if (repeatCount >= 1)
                 {
-                 // 写入每张图像到视频中
-                  Mat image = Cv2.ImDecode(bytes[i * RATE>=bytes.Count? bytes.Count-1: (int)(i * RATE)], ImreadModes.Color);
-                 if (image.Empty())
-                  {
-                        Console.WriteLine($"Failed to decode image ");
-                        continue;
-                  }
-                    videoWriter.Write(image);
+                    for (var i = 0; i < bytes.Count; i++)
+                    {
+
+                        // 写入每张图像到视频中
+                        for (var j = 0; j < repeatCount; j++)
+                        {
+                            Mat image = Mat.FromImageData(bytes[i], ImreadModes.Color);
+                            videoWriter.Write(image);
+                        }
+
+                    }
                 }
-                // 释放视频写入器
+                else
+                {
+                    for (var i = 0; i < bytes.Count; i++)
+                    {
+
+                        // 写入每张图像到视频中
+                        for (var j = 0; j < repeatCount; j++)
+                        {
+                            Mat image = Mat.FromImageData(bytes[i], ImreadModes.Color);
+                            videoWriter.Write(image);
+                        }
+                        if (i % (lessframe - 1) == 0)
+                        {
+                            i++;
+                        }
+
+                    }
+                }
+                    // 释放视频写入器
                 videoWriter.Release();
-                videoWriter?.Dispose();
+                File.Move(fileName, Path.Combine(outputVideo, fileName));
             }
 
-            
+
         }
 
-        
+
         public static void StartListening()
         {
             IPAddress ipAddress = Dns.GetHostEntry(Dns.GetHostName())
@@ -166,19 +192,19 @@ namespace VideoReceiver
                         if (state.AccumulatedBytes.Count < 4) break;
 
                         int dataLength = BitConverter.ToInt32(state.AccumulatedBytes.Take(4).ToArray(), 0);
-                       
+
                         if (state.AccumulatedBytes.Count < 4 + dataLength) break;
 
                         var packet = state.AccumulatedBytes.Skip(4).Take(dataLength).ToList();
-                        
+
                         imageQueue.Enqueue(packet);
 
                         state.AccumulatedBytes.RemoveRange(0, 4 + dataLength);
                     }
                     handler.BeginReceive(state.buffer, 0, StateObject.BufferSize, 0, new AsyncCallback(ReadCallback), state);
                 }
-             
-              
+
+
             }
             catch (Exception e)
             {

@@ -1,8 +1,8 @@
 ﻿{
-    "FFmpegPath": "C:\\Users\\14798\\Desktop\\ffmepg\\ffmpeg-7.1-essentials_build\\bin\\ffmpeg",
-    "Mp4FileRoot": "C:\\Users\\14798\\Desktop\\mp4in",
-    "M3U8FileRoot": "C:\\Users\\14798\\Desktop\\tsout",
-    "MaxSegments": 2,
-    "OUTDATEtIME": 20,
-    "ListenMediaType":"mp4" 
+  "FFmpegPath": "C:\\Users\\BOSBSO\\OneDrive\\桌面\\ffmepg\\ffmpeg-7.1-essentials_build\\bin\\ffmpeg",
+  "Mp4FileRoot": "C:\\Users\\BOSBSO\\OneDrive\\桌面\\MP4",
+  "M3U8FileRoot": "C:\\Users\\BOSBSO\\OneDrive\\桌面\\M3U8",
+  "MaxSegments": 2,
+  "OUTDATEtIME": 20,
+  "ListenMediaType": "mp4"
 }

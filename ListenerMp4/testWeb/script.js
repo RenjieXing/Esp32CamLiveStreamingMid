@@ -7,9 +7,10 @@ document.addEventListener("DOMContentLoaded", async function () {
         const response = await fetch("../appsetting.json");
         const config = await response.json();
         // 构建跨平台兼容的 videoSrc 路径
-        let videoSrc = config.M3U8FileRoot + "/index.m3u8";
+        //let videoSrc = config.M3U8FileRoot + "/index.m3u8";
         // 确保路径分隔符在不同操作系统上都能兼容
-        videoSrc = videoSrc.replace(/\\/g, '/');
+        //videoSrc = videoSrc.replace(/\\/g, '/');
+        videoSrc = "C:\\Users\\BOSBSO\\OneDrive\\桌面\\M3U8\\index.m3u8";
     } catch (error) {
         console.error("读取或解析 appsettings.json 文件时出错:", error);
         return;

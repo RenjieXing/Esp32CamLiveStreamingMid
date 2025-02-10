@@ -59,7 +59,7 @@ class Program
         {
             Path = currentDirectory,
             Filter = $"*.{rocerd.MediaType}",
-            NotifyFilter = NotifyFilters.FileName | NotifyFilters.LastWrite
+            NotifyFilter = NotifyFilters.FileName | NotifyFilters.LastAccess
         };
 
         watcher.Created += async (sender, e) => await OnNewMp4File(e);
@@ -92,6 +92,8 @@ class Program
 
         // 替换原始的 index.m3u8 文件
         File.Copy(tempM3u8File, m3u8File, true);
+        File.Delete(mp4File);
+
     }
 
     static async Task ExecuteFFmpegCommand(string arguments)
@@ -128,14 +130,14 @@ class Program
             {
                 "#EXTM3U",
                 "#EXT-X-VERSION:6",
-                "#EXT-X-TARGETDURATION:10",
+                "#EXT-X-TARGETDURATION:5",
                 "#EXT-X-MEDIA-SEQUENCE:0",
                 "#EXT-X-DISCONTINUITY-SEQUENCE:0"
             };
 
         // 动态维护序列号
-        int mediaSequence = int.Parse(GetTagValue(m3u8Lines, "EXT-X-MEDIA-SEQUENCE") ?? "0");
-        int discontinuitySequence = int.Parse(GetTagValue(m3u8Lines, "EXT-X-DISCONTINUITY-SEQUENCE") ?? "0");
+        int mediaSequence = int.Parse(GetTagValue(m3u8Lines, "#EXT-X-MEDIA-SEQUENCE") ?? "0");
+        int discontinuitySequence = int.Parse(GetTagValue(m3u8Lines, "#EXT-X-DISCONTINUITY-SEQUENCE") ?? "0");
 
         //插入新片段（强制DISCONTINUITY）
         m3u8Lines.Add($"#EXT-X-DISCONTINUITY");
@@ -148,7 +150,7 @@ class Program
         while (segmentCount > rocerd.MaxSegments)
         {
             // 删除最旧的一个片段（3行：DISCONTINUITY + EXTINF + TS）
-            int firstDiscontinuityIndex = m3u8Lines.FindIndex(line => line.Contains("EXT-X-DISCONTINUITY"));
+            int firstDiscontinuityIndex = m3u8Lines.FindIndex(line => line.Contains("EXT-X-DISCONTINUITY") && !line.Contains("SEQUENCE"));
             if (firstDiscontinuityIndex != -1)
             {
                 var tsName = m3u8Lines[firstDiscontinuityIndex + 2];
@@ -162,8 +164,8 @@ class Program
         }
 
         // 更新头部标签
-        UpdateTag(m3u8Lines, "EXT-X-MEDIA-SEQUENCE", mediaSequence.ToString());
-        UpdateTag(m3u8Lines, "EXT-X-DISCONTINUITY-SEQUENCE", discontinuitySequence.ToString());
+        UpdateTag(m3u8Lines, "#EXT-X-MEDIA-SEQUENCE", mediaSequence.ToString());
+        UpdateTag(m3u8Lines, "#EXT-X-DISCONTINUITY-SEQUENCE", discontinuitySequence.ToString());
 
         // 写入文件
         File.WriteAllLines(m3u8File, m3u8Lines);
@@ -176,23 +178,25 @@ class Program
     // 辅助方法：获取标签值
     static string? GetTagValue(List<string> lines, string tagName)
     {
-        return lines.FirstOrDefault(line => line.StartsWith($"#EXT-X-{tagName}:"))?
+        return lines.FirstOrDefault(line => line.StartsWith($"{tagName}:"))?
             .Split(':').Last();
     }
+
 
     // 辅助方法：更新标签
     static void UpdateTag(List<string> lines, string tagName, string value)
     {
-        int index = lines.FindIndex(line => line.StartsWith($"#EXT-X-{tagName}:"));
+        int index = lines.FindIndex(line => line.Contains(tagName));
         if (index != -1)
         {
-            lines[index] = $"#EXT-X-{tagName}:{value}";
+            lines[index] = $"{tagName}:{value}";
         }
         else
         {
-            lines.Insert(3, $"#EXT-X-{tagName}:{value}"); // 插入到版本标签之后
+            lines.Insert(3, $"{tagName}:{value}"); // 插入到版本标签之后
         }
     }
+
     public static TimeSpan GetVideoDuration(string ffmpegPath, string videoPath)
     {
         Process ffmpegProcess = new Process();
