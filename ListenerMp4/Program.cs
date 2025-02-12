@@ -92,7 +92,7 @@ class Program
 
         // 替换原始的 index.m3u8 文件
         File.Copy(tempM3u8File, m3u8File, true);
-        File.Delete(mp4File);
+        //File.Delete(mp4File);
 
     }
 

@@ -1,0 +1,15 @@
+[
+  {
+    "Name": "New Profile",
+    "Projects": [
+      {
+        "Path": "ListenerMp4.csproj",
+        "Action": "Start"
+      },
+      {
+        "Path": "..\\VideoRecvier\\VideoRecvier.csproj",
+        "Action": "Start"
+      }
+    ]
+  }
+]
